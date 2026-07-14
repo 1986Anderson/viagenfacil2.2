@@ -1,1 +1,1253 @@
+HTML
+<!DOCTYPE html>
+<html lang="pt-br" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransControl Pro - Seleção de Poltronas</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { 
+            background-color: var(--bs-body-bg); 
+            transition: background-color 0.3s, color 0.3s; 
+            font-size: 0.95rem;
+        }
+        .card { 
+            border-radius: 16px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06); 
+            border: none; 
+            margin-bottom: 1rem;
+        }
+        
+        /* Layout Interativo da Van/Ônibus */
+        .cabine-van {
+            border-bottom: 3px dashed #ccc;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+        }
+        .van-container {
+            max-width: 320px;
+            margin: 20px auto;
+            background: var(--bs-tertiary-bg);
+            padding: 20px;
+            border-radius: 30px 30px 15px 15px;
+            border: 4px solid var(--bs-border-color);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        }
+        .van-grid {
+            display: grid;
+            grid-template-columns: 1fr 0.5fr 1fr 1fr; /* Simula Poltrona | Corredor | Poltrona | Poltrona */
+            gap: 12px;
+            align-items: center;
+        }
+        .corredor-van {
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .poltrona {
+            height: 42px;
+            border-radius: 10px 10px 6px 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid rgba(0,0,0,0.1);
+            user-select: none;
+            box-shadow: inset 0 -4px 0 rgba(0,0,0,0.15);
+        }
+        
+        /* Cores de status das poltronas */
+        .poltrona.disponivel {
+            background-color: #2ecc71 !important; /* Verde */
+            color: #fff !important;
+        }
+        .poltrona.disponivel:hover {
+            transform: scale(1.08);
+            box-shadow: 0 4px 8px rgba(46, 204, 113, 0.3);
+        }
+        .poltrona.reservada {
+            background-color: #3498db !important; /* Azul */
+            color: #fff !important;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .poltrona.ocupada {
+            background-color: #f1c40f !important; /* Amarelo */
+            color: #2c3e50 !important;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .poltrona.selecionada {
+            background-color: #9b59b6 !important; /* Roxo para o assento que o usuário está marcando agora */
+            color: #fff !important;
+            transform: scale(1.1);
+            animation: pulse-selecionada 1.5s infinite;
+        }
+        .poltrona.motorista {
+            background-color: #95a5a6 !important;
+            color: #fff !important;
+            cursor: not-allowed;
+            pointer-events: none;
+            border-radius: 50%;
+        }
 
+        @keyframes pulse-selecionada {
+            0% { box-shadow: 0 0 0 0 rgba(155, 89, 182, 0.5); }
+            70% { box-shadow: 0 0 0 10px rgba(155, 89, 182, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(155, 89, 182, 0); }
+        }
+
+        /* Legenda de cores */
+        .legenda-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .legenda-cor {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+        }
+
+        /* Animação de Alerta Piscante Otimizada */
+        @keyframes pulsarAlerta {
+            0% { transform: scale(1); box-shadow: 0 0 0px rgba(231, 76, 60, 0); }
+            50% { transform: scale(1.01); box-shadow: 0 0 12px rgba(231, 76, 60, 0.45); }
+            100% { transform: scale(1); box-shadow: 0 0 0px rgba(231, 76, 60, 0); }
+        }
+        @keyframes pulsarSucesso {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+        
+        .alerta-piscante-motorista {
+            animation: pulsarAlerta 2s infinite ease-in-out;
+            border: 2px solid #e74c3c !important;
+        }
+        .badge-piscante-espera {
+            animation: pulsarSucesso 1.8s infinite ease-in-out;
+        }
+
+        /* Estilização das Linhas do Histórico */
+        .linha-embarcado { background-color: rgba(46, 204, 113, 0.08) !important; }
+        .linha-desistente { 
+            background-color: rgba(231, 76, 60, 0.08) !important; 
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+        
+        .secao-sistema { display: none; }
+        .secao-ativa { display: block !important; }
+
+        /* Notificação Compacta Flutuante */
+        .notificacao-toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1050;
+            display: none;
+            max-width: 350px;
+        }
+
+        /* Adaptação Mobile */
+        @media (max-width: 767.98px) {
+            .navbar-brand { font-size: 1.1rem; }
+            
+            .table-responsive-mobile table, 
+            .table-responsive-mobile thead, 
+            .table-responsive-mobile tbody, 
+            .table-responsive-mobile th, 
+            .table-responsive-mobile td, 
+            .table-responsive-mobile tr { 
+                display: block; 
+            }
+            .table-responsive-mobile thead { display: none; }
+            .table-responsive-mobile tr {
+                background: var(--bs-card-bg);
+                border: 1px solid var(--bs-border-color);
+                border-radius: 12px;
+                padding: 12px;
+                margin-bottom: 12px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            }
+            .table-responsive-mobile td {
+                text-align: left !important;
+                padding: 6px 0;
+                border: none;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+            .table-responsive-mobile td::before {
+                content: attr(data-label);
+                font-weight: bold;
+                color: var(--bs-secondary);
+                font-size: 0.8rem;
+                margin-right: 15px;
+            }
+            .table-responsive-mobile td .btn {
+                width: 48%;
+                padding: 8px;
+            }
+            .table-responsive-mobile td.acao-unica {
+                justify-content: center;
+            }
+            .table-responsive-mobile td.acao-unica .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- BARRA DE NAVEGAÇÃO -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-3 shadow-sm">
+    <div class="container-fluid px-3">
+        <a class="navbar-brand fw-bold d-flex align-items-center" href="#" onclick="mostrarSecao('publico')">
+            <i class="fas fa-bus-alt me-2"></i> TransControl Pro
+        </a>
+        <div class="d-flex gap-1">
+            <button id="btn-nav-login" class="btn btn-sm btn-outline-light fw-bold" onclick="mostrarSecao('login')">
+                <i class="fas fa-lock"></i> <span class="d-none d-sm-inline">Painel</span>
+            </button>
+            <button id="btn-nav-logout" class="btn btn-sm btn-danger fw-bold d-none" onclick="efetuarLogout()">
+                <i class="fas fa-sign-out-alt"></i> <span class="d-none d-sm-inline">Sair</span>
+            </button>
+            <button class="btn btn-sm btn-outline-light" onclick="toggleTheme()"><i class="fas fa-adjust"></i></button>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid px-3">
+
+    <!-- TOAST DE ALERTA VISUAL SUSPENSO -->
+    <div id="toast-alerta-novo" class="toast align-items-center text-white bg-danger border-0 notificacao-toast shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body d-flex align-items-center gap-2">
+                <i class="fas fa-bell fa-bounce"></i>
+                <div>
+                    <strong>Novo agendamento recebido!</strong><br>
+                    <span id="toast-mensagem-detalhe" class="small">Verifique a lista de pendentes.</span>
+                </div>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="fecharToastAlerta()" aria-label="Close"></button>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- 1. ÁREA PÚBLICA: FORMULÁRIO DO CLIENTE COM MAPA DE VAN   -->
+    <!-- ======================================================== -->
+    <div id="secao-publico" class="secao-sistema secao-ativa">
+        <div class="row justify-content-center">
+            <div class="col-xl-10 col-lg-12">
+                
+                <div id="status-ultimo-agendamento" class="mb-3 d-none"></div>
+
+                <div class="card p-3 border-top border-primary border-4 text-center">
+                    <h3 class="fw-bold text-primary mb-1"><i class="fas fa-chair me-2"></i>Pedir Van & Escolher Assento</h3>
+                    <p class="text-muted small mb-0">Selecione sua poltrona no desenho abaixo e preencha seus dados de viagem.</p>
+                </div>
+                
+                <div class="row g-3">
+                    <!-- Coluna do Desenho da Van -->
+                    <div class="col-lg-5 col-md-6">
+                        <div class="card p-3 text-center">
+                            <h6 class="fw-bold mb-2 text-secondary"><i class="fas fa-steering-wheel"></i> Mapa de Assentos da Van</h6>
+                            
+                            <!-- Legenda de Cores Requisitada -->
+                            <div class="d-flex justify-content-center gap-3 mb-3 flex-wrap">
+                                <div class="legenda-item">
+                                    <div class="legenda-cor" style="background-color: #2ecc71;"></div>
+                                    <span>Livre</span>
+                                </div>
+                                <div class="legenda-item">
+                                    <div class="legenda-cor" style="background-color: #3498db;"></div>
+                                    <span>Reservado</span>
+                                </div>
+                                <div class="legenda-item">
+                                    <div class="legenda-cor" style="background-color: #f1c40f;"></div>
+                                    <span>Ocupado</span>
+                                </div>
+                                <div class="legenda-item">
+                                    <div class="legenda-cor" style="background-color: #9b59b6;"></div>
+                                    <span>Sua Escolha</span>
+                                </div>
+                            </div>
+
+                            <!-- Corpo da Van Virtual -->
+                            <div class="van-container">
+                                <div class="cabine-van">
+                                    <div class="van-grid">
+                                        <div class="poltrona motorista text-uppercase" style="font-size: 0.65rem;">Mot.</div>
+                                        <div class="corredor-van"></div>
+                                        <div class="corredor-van"></div>
+                                        <div class="corredor-van"></div>
+                                    </div>
+                                </div>
+                                
+                                <div id="mapa-poltronas-van" class="van-grid">
+                                    <!-- Poltronas dinâmicas renderizadas por JavaScript -->
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- Coluna de Cadastro de Informações -->
+                    <div class="col-lg-7 col-md-6">
+                        <div class="card p-3 h-100">
+                            <form id="form-publico-agendamento" onsubmit="salvarAgendamentoPublico(event)">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold small">O que deseja agendar?</label>
+                                    <select id="pub-tipo" class="form-select fw-bold text-primary" onchange="ajustarFormularioPublico()" required>
+                                        <option value="passageiro">👤 Reservar Assento para Passageiro</option>
+                                        <option value="encomenda">📦 Enviar uma Encomenda / Carga (Sem Assento)</option>
+                                    </select>
+                                </div>
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-8">
+                                        <label id="pub-label-nome" class="form-label fw-semibold small">Nome Completo do Passageiro</label>
+                                        <input type="text" id="pub-nome" class="form-control" placeholder="Ex: Maria das Dores" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold small">Poltrona Escolhida</label>
+                                        <input type="text" id="pub-assento-selecionado" class="form-control fw-bold text-center text-primary bg-light" placeholder="Selecione no mapa" readonly required>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label id="pub-label-local" class="form-label fw-semibold small">Local de Embarque ou Busca</label>
+                                    <input type="text" id="pub-local" class="form-control" placeholder="Rua, praça ou comércio próximo" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold small">Destino</label>
+                                    <select id="pub-destino" class="form-select" required>
+                                        <option value="São Raimundo Nonato">São Raimundo Nonato</option>
+                                        <option value="Anísio de Abreu">Anísio de Abreu</option>
+                                        <option value="São Braz">São Braz</option>
+                                        <option value="Gameleira">Gameleira</option>
+                                    </select>
+                                </div>
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <label class="form-label fw-semibold small">Pagamento</label>
+                                        <select id="pub-pagamento" class="form-select" required>
+                                            <option value="Pix">📱 Pix</option>
+                                            <option value="Dinheiro">💵 Dinheiro</option>
+                                            <option value="Cartão">💳 Cartão</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label fw-semibold small">Data</label>
+                                        <input type="date" id="pub-data" class="form-control" onchange="reconstruirMapaVanPorData()" required>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary btn-md w-100 fw-bold shadow mt-2"><i class="fas fa-check-circle me-1"></i> Confirmar Pedido de Viagem</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- 2. TELA DE LOGIN                                         -->
+    <!-- ======================================================== -->
+    <div id="secao-login" class="secao-sistema">
+        <div class="row justify-content-center">
+            <div class="col-md-5 col-lg-4">
+                <div class="card p-4 mt-4">
+                    <div class="text-center mb-3">
+                        <i class="fas fa-user-shield text-primary fa-2x mb-1"></i>
+                        <h5 class="fw-bold m-0">Painel Administrativo</h5>
+                    </div>
+                    <div id="login-erro" class="alert alert-danger d-none small p-2 text-center">Credenciais Incorretas!</div>
+                    <form onsubmit="efetuarLogin(event)">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Usuário</label>
+                            <input type="text" id="login-user" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Senha</label>
+                            <input type="password" id="login-pass" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 fw-bold">Entrar</button>
+                    </form>
+                    <button class="btn btn-link btn-sm w-100 text-center mt-3 text-secondary" onclick="mostrarSecao('publico')">Voltar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- 3. PAINEL ADM/MOTORISTA                                  -->
+    <!-- ======================================================== -->
+    <div id="secao-admin" class="secao-sistema">
+        
+        <!-- CARD ALERTA CRÍTICO DE ESQUECIMENTO / COMUNICADO MULTITERMINAL -->
+        <div id="alerta-esquecimento-motorista" class="alert alert-danger alerta-piscante-motorista d-none p-3 mb-3">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
+                    <div>
+                        <h6 class="fw-bold m-0 text-danger">🚨 NOVOS PEDIDOS NO SERVIDOR!</h6>
+                        <span class="small text-dark">Novas viagens foram registradas por passageiros ou terminais remotos!</span>
+                    </div>
+                </div>
+                <button class="btn btn-danger btn-sm fw-bold shadow-sm" onclick="silenciarAlertaSonoro()"><i class="fas fa-volume-mute"></i> Silenciar Bipe</button>
+            </div>
+        </div>
+
+        <!-- Indicadores Financeiros -->
+        <div class="row g-2 mb-3">
+            <div class="col-6 col-md-3">
+                <div class="card p-2 bg-body-tertiary mb-0">
+                    <small class="text-muted text-uppercase" style="font-size:0.7rem;">Confirmado</small>
+                    <h5 id="resumo-total" class="m-0 fw-bold text-primary">R$ 0,00</h5>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card p-2 bg-body-tertiary mb-0">
+                    <small class="text-muted text-uppercase" style="font-size:0.7rem;">PIX</small>
+                    <h5 id="resumo-pix" class="m-0 fw-bold text-success">R$ 0,00</h5>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card p-2 bg-body-tertiary mb-0">
+                    <small class="text-muted text-uppercase" style="font-size:0.7rem;">Dinheiro</small>
+                    <h5 id="resumo-dinheiro" class="m-0 fw-bold text-warning">R$ 0,00</h5>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card p-2 bg-body-tertiary mb-0">
+                    <small class="text-muted text-uppercase" style="font-size:0.7rem;">Cartão</small>
+                    <h5 id="resumo-cartao" class="m-0 fw-bold text-info">R$ 0,00</h5>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <!-- Seção de Cadastro Lateral (Lançamento e Frota) -->
+            <div class="col-xl-4 col-lg-5">
+                
+                <!-- LANÇAMENTO DIRETO DE VIAGENS -->
+                <div class="card p-3 mb-3">
+                    <h6 class="fw-bold text-primary mb-2"><i class="fas fa-plus-circle me-1"></i>Lançamento de Viagem</h6>
+                    <form id="form-cadastro" onsubmit="salvarLancamentoDireto(event)">
+                        <div class="mb-2">
+                            <select id="tipo" class="form-select form-select-sm" onchange="ajustarFormularioInterno()" required>
+                                <option value="passageiro">👤 Passageiro Comercial</option>
+                                <option value="encomenda">📦 Encomenda / Carga</option>
+                            </select>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-8">
+                                <input type="text" id="nome" class="form-control form-control-sm" placeholder="Nome / Descrição" required>
+                            </div>
+                            <div class="col-4">
+                                <input type="number" id="assento-direto" class="form-control form-control-sm" placeholder="Polt." min="1" max="15">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <input type="text" id="destino-direto" class="form-control form-control-sm" placeholder="Ex: São Raimundo Nonato, Rota..." required>
+                        </div>
+
+                        <!-- LISTAGEM DE MOTORISTA/VAN ATRIBUÍDA NO REGISTRO -->
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold mb-1">Selecionar Van/Responsável</label>
+                            <select id="select-van-viagem" class="form-select form-select-sm" required>
+                                <option value="">Nenhuma Van Cadastrada</option>
+                            </select>
+                        </div>
+
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold mb-1">Valor Fixo (R$)</label>
+                                <select id="select-valor-automatico" class="form-select form-select-sm" onchange="atualizarCampoValorMotorista()">
+                                    <option value="10">R$ 10,00</option>
+                                    <option value="15">R$ 15,00</option>
+                                    <option value="20">R$ 20,00</option>
+                                    <option value="25">R$ 25,00</option>
+                                    <option value="30">R$ 30,00</option>
+                                    <option value="manual">⚙️ Valor Manual</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold mb-1">Valor Final</label>
+                                <input type="number" id="valor" class="form-control form-control-sm fw-bold text-success" placeholder="R$" value="10" step="0.01" readonly required>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <select id="pagamento" class="form-select form-select-sm" required>
+                                    <option value="Pix">📱 Pix</option>
+                                    <option value="Dinheiro">💵 Dinheiro</option>
+                                    <option value="Cartão">💳 Cartão</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <input type="date" id="data-registro" class="form-control form-control-sm" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold"><i class="fas fa-plus"></i> Registrar</button>
+                    </form>
+                </div>
+
+                <!-- CADASTRO DE PROPRIETÁRIO DE VAN E MÚLTIPLAS VANS -->
+                <div class="card p-3 mb-3 border-start border-primary border-4">
+                    <h6 class="fw-bold text-primary mb-2"><i class="fas fa-address-card me-1"></i>Cadastro de Frota & Proprietário</h6>
+                    <form id="form-cadastro-dono-van" onsubmit="cadastrarDonoEVan(event)">
+                        <div class="mb-2">
+                            <input type="text" id="cad-nome-dono" class="form-control form-control-sm" placeholder="Nome do Dono da Van" required>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <input type="text" id="cad-placa-van" class="form-control form-control-sm" placeholder="Placa (Ex: AAA-0000)" required>
+                            </div>
+                            <div class="col-6">
+                                <input type="text" id="cad-modelo-van" class="form-control form-control-sm" placeholder="Modelo (Ex: Sprinter)" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-outline-primary w-100 fw-bold"><i class="fas fa-save"></i> Vincular Van ao Proprietário</button>
+                    </form>
+                    
+                    <div class="mt-2" style="max-height: 120px; overflow-y: auto;">
+                        <ul id="lista-vans-frotas" class="list-group list-group-flush small">
+                            <!-- Vans registradas renderizadas aqui -->
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Painel de Backups -->
+                <div class="card p-3">
+                    <div class="row g-1">
+                        <div class="col-6"><button class="btn btn-xs btn-outline-secondary w-100" style="font-size:0.75rem" onclick="exportarPlanilhaCSV()"><i class="fas fa-file-csv"></i> Planilha</button></div>
+                        <div class="col-6"><button class="btn btn-xs btn-outline-warning text-dark w-100" style="font-size:0.75rem" onclick="exportarBackup()"><i class="fas fa-database"></i> Backup</button></div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Listas Administrativas de Viagens -->
+            <div class="col-xl-8 col-lg-7">
+                
+                <!-- Aguardando Coleta / Aprovação -->
+                <div class="card p-3 border-start border-success border-4">
+                    <h6 class="fw-bold text-success mb-2 d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-route me-1"></i>Solicitações Pendentes (Servidor Único)</span>
+                        <span id="contador-agendamentos" class="badge bg-success rounded-pill">0</span>
+                    </h6>
+                    
+                    <!-- Preço de Coleta e Distribuição de Frota -->
+                    <div id="area-definicao-preco-pendente" class="bg-light p-3 rounded mb-2 border d-none">
+                        <div class="row g-2">
+                            <div class="col-md-5">
+                                <span class="small fw-bold text-secondary d-block mb-1">Definir Tarifa de Viagem:</span>
+                                <div class="d-flex gap-1">
+                                    <select id="valor-pedido-pendente" class="form-select form-select-sm w-auto">
+                                        <option value="10">R$ 10,00</option>
+                                        <option value="15">R$ 15,00</option>
+                                        <option value="20">R$ 20,00</option>
+                                        <option value="25">R$ 25,00</option>
+                                        <option value="30">R$ 30,00</option>
+                                    </select>
+                                    <input type="number" id="valor-pedido-manual" class="form-control form-control-sm" placeholder="Outro R$">
+                                </div>
+                            </div>
+                            <div class="col-md-7">
+                                <span class="small fw-bold text-secondary d-block mb-1">Delegar esta viagem para Van:</span>
+                                <select id="select-van-despacho" class="form-select form-select-sm" required>
+                                    <option value="">Nenhuma selecionada - Sem Van</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive-mobile" style="max-height: 280px; overflow-y: auto;">
+                        <table class="table table-sm align-middle table-bordered border-light m-0">
+                            <thead class="table-success text-dark small text-uppercase">
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Data</th>
+                                    <th>Nome / Polt.</th>
+                                    <th>Onde Buscar (Rua/Ponto)</th>
+                                    <th>Destino</th>
+                                    <th class="text-center">Ação do Motorista</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-agendamentos"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Histórico Consolidado -->
+                <div class="card p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                        <h6 class="fw-bold m-0"><i class="fas fa-history text-secondary me-1"></i>Relatório Geral de Caixa</h6>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary filter-btn active" onclick="filtrarPeriodo('todos', this)">Tudo</button>
+                            <button class="btn btn-outline-primary filter-btn" onclick="filtrarPeriodo('diario', this)">Hoje</button>
+                            <button class="btn btn-outline-primary filter-btn" onclick="filtrarPeriodo('mensal', this)">Mês</button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive-mobile">
+                        <table class="table table-hover align-middle m-0">
+                            <thead class="table-light text-secondary small text-uppercase">
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Identificação / Polt.</th>
+                                    <th>Frota / Van</th>
+                                    <th>Pgto</th>
+                                    <th>Status</th>
+                                    <th class="text-end text-primary">Passageiro</th>
+                                    <th class="text-end text-success">Encomenda</th>
+                                    <th class="text-center">Remover</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-corpo"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const URL_SERVIDOR_API = null; // Colocar URL base do backend se houver.
+
+    let bdViagens = JSON.parse(localStorage.getItem('bd_viagens_sistema')) || [];
+    let bdAgendamentos = JSON.parse(localStorage.getItem('bd_agendamentos_sistema')) || [];
+    let bdVans = JSON.parse(localStorage.getItem('bd_vans_sistema')) || [
+        { id: 1, dono: "Anderson Ribeiro", placa: "ARS-2026", modelo: "Mercedes Sprinter" }
+    ];
+    
+    let filtroAtivo = 'todos';
+    let motoristaLogado = false;
+    let idUltimoAgendamento = localStorage.getItem('id_ultimo_agendamento') || null;
+    let audioContext = null;
+    let loopSomAlerta = null;
+    let poltronaSelecionadaTemporaria = null;
+
+    document.getElementById('pub-data').valueAsDate = new Date();
+    document.getElementById('data-registro').valueAsDate = new Date();
+    
+    // Inicia os mapas e verificações
+    reconstruirMapaVanPorData();
+    checarStatusParaPassageiro();
+
+    function toggleTheme() {
+        const html = document.documentElement;
+        html.dataset.bsTheme = html.dataset.bsTheme === 'light' ? 'dark' : 'light';
+    }
+
+    function mostrarSecao(secaoId) {
+        if(secaoId === 'admin' && !motoristaLogado) secaoId = 'login';
+        document.querySelectorAll('.secao-sistema').forEach(s => s.classList.remove('secao-ativa'));
+        document.getElementById(`secao-${secaoId}`).classList.add('secao-ativa');
+        if (secaoId === 'publico') {
+            reconstruirMapaVanPorData();
+            checarStatusParaPassageiro();
+        }
+    }
+
+    // --- MONTAGEM VIRTUAL DO DESENHO DA VAN (15 POLTRONAS) ---
+    function reconstruirMapaVanPorData() {
+        const container = document.getElementById('mapa-poltronas-van');
+        container.innerHTML = '';
+        
+        const dataSelecionada = document.getElementById('pub-data').value;
+        poltronaSelecionadaTemporaria = null;
+        document.getElementById('pub-assento-selecionado').value = '';
+
+        // Mapear quais assentos já estão reservados ou ocupados para essa data específica
+        const assentosOcupados = {}; // Amarelos (Confirmados)
+        const assentosReservados = {}; // Azuis (Pendentes)
+
+        bdViagens.forEach(item => {
+            if (item.data === dataSelecionada && item.status === 'Embarcado' && item.poltrona) {
+                assentosOcupados[item.poltrona] = true;
+            }
+        });
+
+        bdAgendamentos.forEach(item => {
+            if (item.data === dataSelecionada && item.poltrona) {
+                assentosReservados[item.poltrona] = true;
+            }
+        });
+
+        // Loop para desenhar as 15 poltronas com o corredor correto
+        // Layout: Fileiras de 3 poltronas com corredor (Esquerda - Corredor - Direita - Direita)
+        let contPoltrona = 1;
+        for (let row = 1; row <= 5; row++) {
+            for (let col = 1; col <= 4; col++) {
+                if (col === 2 && row < 5) {
+                    // Adiciona o espaço do corredor na van (exceto na última fileira)
+                    const corredorDiv = document.createElement('div');
+                    corredorDiv.className = 'corredor-van';
+                    container.appendChild(corredorDiv);
+                } else {
+                    if (contPoltrona > 15) break;
+
+                    const numPoltrona = contPoltrona;
+                    const divPoltrona = document.createElement('div');
+                    divPoltrona.className = 'poltrona';
+                    divPoltrona.innerText = numPoltrona;
+                    divPoltrona.dataset.num = numPoltrona;
+
+                    // Definição das Cores Requisitadas
+                    if (assentosOcupados[numPoltrona]) {
+                        divPoltrona.classList.add('ocupada'); // Amarela
+                    } else if (assentosReservados[numPoltrona]) {
+                        divPoltrona.classList.add('reservada'); // Azul
+                    } else {
+                        divPoltrona.classList.add('disponivel'); // Verde
+                        divPoltrona.onclick = () => selecionarPoltronaNoMapa(numPoltrona, divPoltrona);
+                    }
+
+                    container.appendChild(divPoltrona);
+                    contPoltrona++;
+                }
+            }
+        }
+    }
+
+    function selecionarPoltronaNoMapa(numero, elemento) {
+        if (document.getElementById('pub-tipo').value === 'encomenda') {
+            alert("Encomendas não ocupam assentos. Altere para 'Passageiro' se deseja reservar uma poltrona.");
+            return;
+        }
+
+        // Reseta assento selecionado anteriormente
+        document.querySelectorAll('.poltrona.selecionada').forEach(el => {
+            el.classList.remove('selecionada');
+            el.classList.add('disponivel');
+        });
+
+        poltronaSelecionadaTemporaria = numero;
+        elemento.classList.remove('disponivel');
+        elemento.classList.add('selecionada');
+        document.getElementById('pub-assento-selecionado').value = `Poltrona ${numero}`;
+    }
+
+    // --- ALERTA SONORO INTUITIVO ---
+    function reproduzirBipeSonoro() {
+        try {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            const oscilador = audioContext.createOscillator();
+            const controleGanho = audioContext.createGain();
+            
+            oscilador.connect(controleGanho);
+            controleGanho.connect(audioContext.destination);
+            
+            oscilador.type = 'sine';
+            oscilador.frequency.setValueAtTime(659.25, audioContext.currentTime);
+            controleGanho.gain.setValueAtTime(0.12, audioContext.currentTime);
+            
+            oscilador.start();
+            oscilador.stop(audioContext.currentTime + 0.15);
+        } catch(e) { console.log("Áudio aguardando interação."); }
+    }
+
+    function tocarAlertaContinuo() {
+        if (!loopSomAlerta) {
+            reproduzirBipeSonoro();
+            loopSomAlerta = setInterval(reproduzirBipeSonoro, 3500);
+        }
+    }
+
+    function silenciarAlertaSonoro() {
+        if (loopSomAlerta) {
+            clearInterval(loopSomAlerta);
+            loopSomAlerta = null;
+        }
+    }
+
+    // --- CONTROLE DE CADASTRO DE VANS ---
+    function cadastrarDonoEVan(e) {
+        e.preventDefault();
+        const dono = document.getElementById('cad-nome-dono').value.trim();
+        const placa = document.getElementById('cad-placa-van').value.trim().toUpperCase();
+        const modelo = document.getElementById('cad-modelo-van').value.trim();
+
+        const novaVan = {
+            id: Date.now(),
+            dono: dono,
+            placa: placa,
+            modelo: modelo
+        };
+
+        bdVans.push(novaVan);
+        localStorage.setItem('bd_vans_sistema', JSON.stringify(bdVans));
+        
+        document.getElementById('cad-nome-dono').value = '';
+        document.getElementById('cad-placa-van').value = '';
+        document.getElementById('cad-modelo-van').value = '';
+        
+        atualizarListasDeVans();
+        renderizarDashboard();
+    }
+
+    function deletarVan(id) {
+        if (confirm("Remover esta van e o proprietário do sistema?")) {
+            bdVans = bdVans.filter(v => v.id !== id);
+            localStorage.setItem('bd_vans_sistema', JSON.stringify(bdVans));
+            atualizarListasDeVans();
+            renderizarDashboard();
+        }
+    }
+
+    function atualizarListasDeVans() {
+        const wrapper = document.getElementById('lista-vans-frotas');
+        const comboViagem = document.getElementById('select-van-viagem');
+        const comboDespacho = document.getElementById('select-van-despacho');
+        
+        wrapper.innerHTML = '';
+        comboViagem.innerHTML = '<option value="">Sem Van (Avulso/Outro)</option>';
+        comboDespacho.innerHTML = '<option value="">Sem Van atribuída (Nenhuma)</option>';
+
+        bdVans.forEach(van => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center px-0 py-1 bg-transparent border-bottom';
+            li.innerHTML = `
+                <span><strong>${van.dono}</strong> <small>(${van.modelo} - ${van.placa})</small></span>
+                <button class="btn btn-sm text-danger p-0 border-0 bg-transparent" onclick="deletarVan(${van.id})"><i class="fas fa-times-circle"></i></button>
+            `;
+            wrapper.appendChild(li);
+
+            const optViagem = new Option(`${van.dono} (${van.placa})`, `${van.dono} (${van.placa})`);
+            const optDespacho = new Option(`${van.dono} (${van.placa})`, `${van.dono} (${van.placa})`);
+            comboViagem.add(optViagem);
+            comboDespacho.add(optDespacho);
+        });
+    }
+
+    // --- COMUNICAÇÃO DE REDE MULTITERMINAL ---
+    async function sincronizarServidorMultiterminal() {
+        if (URL_SERVIDOR_API) {
+            try {
+                const response = await fetch(`${URL_SERVIDOR_API}/agendamentos`);
+                const dadosServidor = await response.json();
+                processarAlteracoesServidor(dadosServidor);
+            } catch (err) {
+                processarOfflineFallback();
+            }
+        } else {
+            processarOfflineFallback();
+        }
+    }
+
+    function processarOfflineFallback() {
+        const agendamentosLocais = JSON.parse(localStorage.getItem('bd_agendamentos_sistema')) || [];
+        processarAlteracoesServidor(agendamentosLocais);
+    }
+
+    function processarAlteracoesServidor(agendamentos) {
+        if (agendamentos.length > bdAgendamentos.length) {
+            const numNovos = agendamentos.length - bdAgendamentos.length;
+            exibirToastNovoAlerta(numNovos);
+        }
+        bdAgendamentos = agendamentos;
+        renderizarDashboard();
+        reconstruirMapaVanPorData();
+    }
+
+    function exibirToastNovoAlerta(quantidade) {
+        reproduzirBipeSonoro();
+        if (motoristaLogado) {
+            tocarAlertaContinuo();
+            const toast = document.getElementById('toast-alerta-novo');
+            document.getElementById('toast-mensagem-detalhe').innerText = `Você possui ${quantidade} novo(s) pedido(s) pendente(s) na rede.`;
+            toast.style.display = 'block';
+        }
+    }
+
+    function fecharToastAlerta() {
+        document.getElementById('toast-alerta-novo').style.display = 'none';
+    }
+
+    setInterval(sincronizarServidorMultiterminal, 5000);
+
+    function atualizarCampoValorMotorista() {
+        const seletor = document.getElementById('select-valor-automatico');
+        const campoValor = document.getElementById('valor');
+        if (seletor.value === 'manual') {
+            campoValor.value = '';
+            campoValor.readOnly = false;
+            campoValor.focus();
+        } else {
+            campoValor.value = seletor.value;
+            campoValor.readOnly = true;
+        }
+    }
+
+    function checarStatusParaPassageiro() {
+        const container = document.getElementById('status-ultimo-agendamento');
+        if (!idUltimoAgendamento) { container.classList.add('d-none'); return; }
+
+        const pendente = bdAgendamentos.find(item => item.id == idUltimoAgendamento);
+        if (pendente) {
+            container.classList.remove('d-none');
+            container.innerHTML = `
+                <div class="alert alert-warning text-center fw-bold badge-piscante-espera shadow-sm mb-0 p-2" style="border: 2px dashed #f1c40f;">
+                    <i class="fas fa-spinner fa-spin me-2"></i> ⏳ AGUARDANDO CONFIRMAÇÃO DO MOTORISTA ARS (Poltrona ${pendente.poltrona || 'Nenhuma'})...
+                </div>`;
+            return;
+        }
+
+        const realizado = bdViagens.find(item => item.idOrigemAgendamento == idUltimoAgendamento);
+        if (realizado) {
+            container.classList.remove('d-none');
+            if (realizado.status === 'Embarcado') {
+                container.innerHTML = `
+                    <div class="alert alert-success text-center fw-bold shadow-sm mb-0 p-2" style="border: 2px solid #2ecc71;">
+                        <i class="fas fa-check-circle me-2"></i> ✅ CONFIRMADO! POLTRONA: ${realizado.poltrona || 'Definida'}. FROTAS: ${realizado.vanAtribuida || 'ARS'}.
+                    </div>`;
+            } else {
+                container.innerHTML = `
+                    <div class="alert alert-danger text-center fw-bold shadow-sm mb-0 p-2">
+                        <i class="fas fa-times-circle me-2"></i> O PEDIDO FOI REJEITADO OU DESIGNADO COMO DESISTENTE.
+                    </div>`;
+            }
+        }
+    }
+
+    function ajustarFormularioPublico() {
+        const tipo = document.getElementById('pub-tipo').value;
+        const labelNome = document.getElementById('pub-label-nome');
+        const labelLocal = document.getElementById('pub-label-local');
+        const campoAssento = document.getElementById('pub-assento-selecionado');
+        
+        if (tipo === 'encomenda') {
+            labelNome.innerText = "Descrição do Objeto/Encomenda";
+            labelLocal.innerText = "Local de Retirada (Onde o motorista busca?)";
+            campoAssento.value = "Sem assento";
+            campoAssento.required = false;
+            poltronaSelecionadaTemporaria = null;
+            document.querySelectorAll('.poltrona.selecionada').forEach(el => {
+                el.classList.remove('selecionada');
+                el.classList.add('disponivel');
+            });
+        } else {
+            labelNome.innerText = "Nome Completo do Passageiro";
+            labelLocal.innerText = "Local de Embarque (Onde vai aguardar?)";
+            campoAssento.value = "";
+            campoAssento.required = true;
+        }
+    }
+
+    function ajustarFormularioInterno() {
+        const tipo = document.getElementById('tipo').value;
+        document.getElementById('nome').placeholder = tipo === 'encomenda' ? "Descrição da Carga" : "Nome do Passageiro";
+    }
+
+    // --- LOGIN ---
+    function efetuarLogin(e) {
+        e.preventDefault();
+        if (document.getElementById('login-user').value === 'ars' && document.getElementById('login-pass').value === 'ars') {
+            motoristaLogado = true;
+            document.getElementById('login-erro').classList.add('d-none');
+            document.getElementById('btn-nav-login').classList.add('d-none');
+            document.getElementById('btn-nav-logout').classList.remove('d-none');
+            mostrarSecao('admin');
+            atualizarListasDeVans();
+            renderizarDashboard();
+        } else {
+            document.getElementById('login-erro').classList.remove('d-none');
+        }
+    }
+
+    function efetuarLogout() {
+        motoristaLogado = false;
+        document.getElementById('btn-nav-login').classList.remove('d-none');
+        document.getElementById('btn-nav-logout').classList.add('d-none');
+        silenciarAlertaSonoro();
+        fecharToastAlerta();
+        mostrarSecao('publico');
+    }
+
+    // --- ENVIAR DO PASSAGEIRO ---
+    async function salvarAgendamentoPublico(e) {
+        e.preventDefault();
+        const tipo = document.getElementById('pub-tipo').value;
+
+        if (tipo === 'passageiro' && !poltronaSelecionadaTemporaria) {
+            alert("Selecione uma poltrona no desenho da van para prosseguir!");
+            return;
+        }
+
+        const idGerado = Date.now();
+        const novoAgendamento = {
+            id: idGerado,
+            tipo: tipo,
+            nome: document.getElementById('pub-nome').value,
+            poltrona: poltronaSelecionadaTemporaria,
+            local: document.getElementById('pub-local').value,
+            destinoTexto: document.getElementById('pub-destino').value,
+            pagamento: document.getElementById('pub-pagamento').value,
+            data: document.getElementById('pub-data').value
+        };
+
+        bdAgendamentos.push(novoAgendamento);
+        idUltimoAgendamento = idGerado;
+        localStorage.setItem('id_ultimo_agendamento', idGerado);
+        localStorage.setItem('bd_agendamentos_sistema', JSON.stringify(bdAgendamentos));
+
+        if (URL_SERVIDOR_API) {
+            try {
+                await fetch(`${URL_SERVIDOR_API}/agendamentos`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(novoAgendamento)
+                });
+            } catch(e) { console.warn("Modo de redundância offline ativo."); }
+        }
+        
+        alert("Sua reserva foi enviada com sucesso! Aguarde a confirmação do motorista na tela.");
+        document.getElementById('pub-nome').value = '';
+        document.getElementById('pub-local').value = '';
+        poltronaSelecionadaTemporaria = null;
+        document.getElementById('pub-assento-selecionado').value = '';
+        
+        reconstruirMapaVanPorData();
+        checarStatusParaPassageiro();
+    }
+
+    // --- LANÇAMENTOS DO MOTORISTA ---
+    function salvarLancamentoDireto(e) {
+        e.preventDefault();
+        const vanAtribuida = document.getElementById('select-van-viagem').value;
+        const poltDigitada = parseInt(document.getElementById('assento-direto').value);
+
+        const novo = {
+            id: Date.now(),
+            tipo: document.getElementById('tipo').value,
+            nome: document.getElementById('nome').value,
+            poltrona: isNaN(poltDigitada) ? null : poltDigitada,
+            destino: document.getElementById('destino-direto').value,
+            valor: parseFloat(document.getElementById('valor').value) || 0,
+            pagamento: document.getElementById('pagamento').value,
+            status: 'Embarcado',
+            vanAtribuida: vanAtribuida || 'Avulsa/Não Especificada',
+            data: document.getElementById('data-registro').value
+        };
+        bdViagens.push(novo);
+        atualizarSistemasLocais();
+        document.getElementById('nome').value = '';
+        document.getElementById('assento-direto').value = '';
+        document.getElementById('destino-direto').value = '';
+    }
+
+    function confirmarEmbarque(id) {
+        const agendamento = bdAgendamentos.find(item => item.id === id);
+        if (agendamento) {
+            const valSel = document.getElementById('valor-pedido-pendente').value;
+            const valMan = parseFloat(document.getElementById('valor-pedido-manual').value);
+            const valorFinal = !isNaN(valMan) ? valMan : parseFloat(valSel);
+            const vanAtribuida = document.getElementById('select-van-despacho').value;
+
+            const ind = agendamento.tipo === 'encomenda' ? '📦 Carga' : `👤 Polt ${agendamento.poltrona || 'S/A'}`;
+            const novaViagem = {
+                id: Date.now(),
+                idOrigemAgendamento: agendamento.id,
+                tipo: agendamento.tipo,
+                nome: `${agendamento.nome} (${ind})`,
+                poltrona: agendamento.poltrona || null,
+                valor: valorFinal,
+                pagamento: agendamento.pagamento,
+                status: 'Embarcado',
+                vanAtribuida: vanAtribuida || 'Geral / Avulsa',
+                data: agendamento.data
+            };
+            bdViagens.push(novaViagem);
+            bdAgendamentos = bdAgendamentos.filter(item => item.id !== id);
+            
+            document.getElementById('valor-pedido-manual').value = '';
+            silenciarAlertaSonoro();
+            fecharToastAlerta();
+            atualizarSistemasLocais();
+        }
+    }
+
+    function recusarEmbarque(id) {
+        const agendamento = bdAgendamentos.find(item => item.id === id);
+        if (agendamento && confirm("Rejeitar permanentemente este agendamento?")) {
+            const novaViagemDesistente = {
+                id: Date.now(),
+                idOrigemAgendamento: agendamento.id,
+                tipo: agendamento.tipo,
+                nome: `${agendamento.nome} (📍 Local: ${agendamento.local})`,
+                poltrona: agendamento.poltrona || null,
+                valor: 0,
+                pagamento: agendamento.pagamento,
+                status: 'Desistente',
+                vanAtribuida: 'Nenhuma',
+                data: agendamento.data
+            };
+            bdViagens.push(novaViagemDesistente);
+            bdAgendamentos = bdAgendamentos.filter(item => item.id !== id);
+            silenciarAlertaSonoro();
+            fecharToastAlerta();
+            atualizarSistemasLocais();
+        }
+    }
+
+    function excluirDefinitivo(id) {
+        if(confirm("Remover permanentemente do registro?")) {
+            bdViagens = bdViagens.filter(item => item.id !== id);
+            atualizarSistemasLocais();
+        }
+    }
+
+    function atualizarSistemasLocais() {
+        localStorage.setItem('bd_viagens_sistema', JSON.stringify(bdViagens));
+        localStorage.setItem('bd_agendamentos_sistema', JSON.stringify(bdAgendamentos));
+        renderizarDashboard();
+        reconstruirMapaVanPorData();
+    }
+
+    function filtrarPeriodo(tipoFiltro, botao) {
+        filtroAtivo = tipoFiltro;
+        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+        botao.classList.add('active');
+        renderizarDashboard();
+    }
+
+    function validarFiltroData(dataDoItem) {
+        const hoje = new Date();
+        const dataReg = new Date(dataDoItem + 'T00:00:00');
+        if (filtroAtivo === 'diario') return hoje.toDateString() === dataReg.toDateString();
+        if (filtroAtivo === 'mensal') return hoje.getMonth() === dataReg.getMonth() && hoje.getFullYear() === dataReg.getFullYear();
+        return true;
+    }
+
+    // --- PROCESSAMENTO DO DASHBOARD ADM ---
+    function renderizarDashboard() {
+        if(!motoristaLogado) return;
+
+        const cartaoAlerta = document.getElementById('alerta-esquecimento-motorista');
+        const areaPrecoPendente = document.getElementById('area-definicao-preco-pendente');
+        
+        if(bdAgendamentos.length > 0) {
+            cartaoAlerta.classList.remove('d-none');
+            areaPrecoPendente.classList.remove('d-none');
+        } else {
+            cartaoAlerta.classList.add('d-none');
+            areaPrecoPendente.classList.add('d-none');
+            silenciarAlertaSonoro();
+        }
+
+        // Renderizar Solicitações Pendentes
+        const tabAgendamentos = document.getElementById('tabela-agendamentos');
+        tabAgendamentos.innerHTML = '';
+        document.getElementById('contador-agendamentos').innerText = bdAgendamentos.length;
+
+        bdAgendamentos.forEach(item => {
+            const tr = document.createElement('tr');
+            const dataFmt = item.data.split('-').reverse().join('/');
+            const rotuloTipo = item.tipo === 'encomenda' ? '📦 Carga' : '👤 Passageiro';
+            const assentoInfo = item.poltrona ? `[Polt. ${item.poltrona}]` : '';
+            
+            tr.innerHTML = `
+                <td data-label="Tipo"><span class="badge bg-secondary">${rotuloTipo}</span></td>
+                <td data-label="Data"><small class="fw-bold">${dataFmt}</small></td>
+                <td data-label="Nome"><strong>${item.nome} ${assentoInfo}</strong></td>
+                <td data-label="Onde Buscar"><span class="text-danger fw-bold"><i class="fas fa-map-marker-alt"></i> ${item.local}</span></td>
+                <td data-label="Destino"><small class="text-muted">${item.destinoTexto}</small></td>
+                <td data-label="Ação">
+                    <button class="btn btn-success btn-sm fw-bold me-1" onclick="confirmarEmbarque(${item.id})"><i class="fas fa-check"></i> Aceitar</button>
+                    <button class="btn btn-danger btn-sm fw-bold" onclick="recusarEmbarque(${item.id})"><i class="fas fa-times"></i> Recusar</button>
+                </td>
+            `;
+            tabAgendamentos.appendChild(tr);
+        });
+
+        // Caixa e Fluxo Geral
+        const tabelaCorpo = document.getElementById('tabela-corpo');
+        tabelaCorpo.innerHTML = '';
+        let total = 0, pix = 0, dinheiro = 0, cartao = 0;
+
+        bdViagens.filter(item => validarFiltroData(item.data)).forEach(item => {
+            const tr = document.createElement('tr');
+            tr.classList.add(item.status === 'Embarcado' ? 'linha-embarcado' : 'linha-desistente');
+
+            const icone = item.tipo === 'encomenda' ? '<i class="fas fa-box text-success me-1"></i>' : '<i class="fas fa-user text-primary me-1"></i>';
+            const dataFmt = item.data.split('-').reverse().join('/');
+            const poltTexto = item.poltrona ? ` (P. ${item.poltrona})` : '';
+            const vPass = item.tipo !== 'encomenda' ? `R$ ${item.valor.toFixed(2)}` : '—';
+            const vEnc = item.tipo === 'encomenda' ? `R$ ${item.valor.toFixed(2)}` : '—';
+            const bColor = item.status === 'Embarcado' ? 'bg-success' : 'bg-danger';
+
+            tr.innerHTML = `
+                <td data-label="Data"><small class="fw-bold">${dataFmt}</small></td>
+                <td data-label="Identificação">${icone}<strong>${item.nome}${poltTexto}</strong></td>
+                <td data-label="Frota / Van"><span class="badge bg-primary text-white">${item.vanAtribuida || 'Geral'}</span></td>
+                <td data-label="Pgto"><span class="badge bg-body-secondary text-body border">${item.pagamento}</span></td>
+                <td data-label="Status"><span class="badge ${bColor}">${item.status}</span></td>
+                <td data-label="Passageiro" class="text-end fw-bold text-primary">${vPass}</td>
+                <td data-label="Encomenda" class="text-end fw-bold text-success">${vEnc}</td>
+                <td data-label="Remover" class="text-center acao-unica">
+                    <button class="btn btn-sm btn-link text-danger p-0" onclick="excluirDefinitivo(${item.id})"><i class="fas fa-trash-alt"></i></button>
+                </td>
+            `;
+            tabelaCorpo.appendChild(tr);
+
+            if (item.status !== 'Desistente') {
+                total += item.valor;
+                if(item.pagamento === 'Pix') pix += item.valor;
+                if(item.pagamento === 'Dinheiro') dinheiro += item.valor;
+                if(item.pagamento === 'Cartão') cartao += item.valor;
+            }
+        });
+
+        document.getElementById('resumo-total').innerText = `R$ ${total.toFixed(2)}`;
+        document.getElementById('resumo-pix').innerText = `R$ ${pix.toFixed(2)}`;
+        document.getElementById('resumo-dinheiro').innerText = `R$ ${dinheiro.toFixed(2)}`;
+        document.getElementById('resumo-cartao').innerText = `R$ ${cartao.toFixed(2)}`;
+    }
+
+    function exportarPlanilhaCSV() {
+        let csv = 'Data;Tipo;Identificacao;Poltrona;Frota Atribuida;Pagamento;Status;Valor\n';
+        bdViagens.forEach(item => { csv += `${item.data};${item.tipo};${item.nome};${item.poltrona || ''};${item.vanAtribuida};${item.pagamento};${item.status};${item.valor.toFixed(2)}\n`; });
+        const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+        a.setAttribute("download", `Caixa_ARS_Vans.csv`); document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    function exportarBackup() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ viagens: bdViagens, agendamentos: bdAgendamentos, vans: bdVans }, null, 2));
+        const a = document.createElement('a'); a.setAttribute("href", dataStr); a.setAttribute("download", `BACKUP_ARS_FROTAS.json`);
+        document.body.appendChild(a); a.click(); a.removeChild(a);
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
